@@ -2,6 +2,8 @@
 
 DOINSTALL=true
 
+#Copy env
+mv ../.env.template ../.env
 
 # Check if user is root
 if [[ $EUID -ne 0 ]]; then
