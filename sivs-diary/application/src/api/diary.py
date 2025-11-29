@@ -12,7 +12,7 @@ def getdiaryentries():
     :return:
     """
     username = request.args.get('username')
-    searchparameter = request.args.get('searchparameter')
+    searchparameter = str(request.args.get('searchparameter')).lower()
     result = db_handler.getDiary(username=username,searchparameter=searchparameter)
     return result
 
