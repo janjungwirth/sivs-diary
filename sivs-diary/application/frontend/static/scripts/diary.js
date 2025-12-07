@@ -152,7 +152,7 @@ function createDiaryBox(id, title, date, content) {
     // Erstelle und füge den Textinhalt hinzu
     var contentElement = document.createElement("div");
     contentElement.className = "card-body";
-    contentElement.innerHTML = content;
+    contentElement.innerContent = content;
     entryDiv.appendChild(contentElement);
 
     div_col.appendChild(entryDiv);
