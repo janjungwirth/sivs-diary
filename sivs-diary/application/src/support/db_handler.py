@@ -81,8 +81,8 @@ class DBHandler():
         :param password:
         :return:
         """
-        user_query = f"SELECT * FROM Users WHERE username = '{username}' AND password = '{password}'"
-        result = self.execute_query(user_query, fetchone=True)
+        user_query = "SELECT * FROM Users WHERE username = %s AND password = %s"
+        result = self.execute_query(user_query, (username, password), fetchone=True)
         if result:
             return jsonify({
                 'message': 'Logged In',
@@ -98,8 +98,8 @@ class DBHandler():
         :param username:
         :return:
         """
-        user_id_query = f"SELECT id FROM Users WHERE username = '{username}'"
-        user_id = self.execute_query(user_id_query, None,fetchone=True)
+        user_id_query = "SELECT id FROM Users WHERE username = %s"
+        user_id = self.execute_query(user_id_query, (username,), fetchone=True)
         if user_id:
             user_id = user_id[0]
         return user_id
@@ -116,8 +116,8 @@ class DBHandler():
         content = entry["entry_content"]
         date = entry["entry_date"]
         if user_id:
-            insert_query = f"INSERT INTO DiaryEntries (user_id,entry_title,entry_content,entry_date) VALUES (\'{user_id}\',\'{title}\', \'{content}\',\'{date}\')"
-            self.execute_query(insert_query, fetch=False)
+            insert_query = "INSERT INTO DiaryEntries (user_id,entry_title,entry_content,entry_date) VALUES (%s, %s, %s, %s)"
+            self.execute_query(insert_query, (user_id, title, content, date), fetch=False)
             return jsonify({'message': 'Diary Entry created!'})
         else:
             return jsonify({'message': 'Error!'})
@@ -128,8 +128,8 @@ class DBHandler():
         :param id:
         :return:
         """
-        delete_query = f"DELETE FROM DiaryEntries WHERE id={id}"
-        result = self.execute_query(delete_query,fetch=False)
+        delete_query = "DELETE FROM DiaryEntries WHERE id=%s"
+        result = self.execute_query(delete_query, (id,), fetch=False)
         if result:
             return jsonify({'message': 'Diary Entry deleted!'})
         else:
@@ -146,15 +146,16 @@ class DBHandler():
         if not searchparameter or searchparameter == "null":
             searchparameter = ""
         if user_id:
-            entries_query = (f"""
-                SELECT id, entry_title, entry_content, entry_date 
-                FROM DiaryEntries d 
-                WHERE d.user_id = '{user_id}' 
-                  AND (LOWER(d.entry_content) LIKE '%{searchparameter}%' OR LOWER(d.entry_title) LIKE '%{searchparameter}%') 
-                ORDER BY entry_date desc
-            """)
+            entries_query = """
+                    SELECT id, entry_title, entry_content, entry_date 
+                    FROM DiaryEntries d 
+                    WHERE d.user_id = %s 
+                      AND (LOWER(d.entry_content) LIKE %s OR LOWER(d.entry_title) LIKE %s) 
+                    ORDER BY entry_date desc
+                """
+            search_pattern = f"%{searchparameter}%"
             print(entries_query)
-            entries = self.execute_query(entries_query)
+            entries = self.execute_query(entries_query, (user_id, search_pattern, search_pattern))
             print(entries)
             if entries is not None:
                 return jsonify(entries)
@@ -170,37 +171,36 @@ class DBHandler():
         :return:
         """
         # Datenbank Query sucht den User und prüft ob die Geheimantwort übereinstimmt
-        user_id_query = f"SELECT id FROM Users WHERE username = '{username}' and secret_answer = '{secret_answer}'"
-        user_id = self.execute_query(user_id_query,fetchone=True)
+        user_id_query = "SELECT id FROM Users WHERE username = %s and secret_answer = %s"
+        user_id = self.execute_query(user_id_query, (username, secret_answer), fetchone=True)
         if user_id:
-            pw_update_query = f"UPDATE Users SET password = \'{password}\' WHERE id='{user_id[0]}'"
-            result = self.execute_query(pw_update_query,fetch=False)
+            pw_update_query = "UPDATE Users SET password = %s WHERE id=%s"
+            result = self.execute_query(pw_update_query, (password, user_id[0]), fetch=False)
             return jsonify({'message': 'Password reset successful!'})
         else:
             return jsonify({'message': 'Wrong answer!'})
 
-    def insertUser(self, username,password,secret_question,secret_answer):
-        """
-        Erstellt einen neuen Benutzer in der Datenbank
-        :param username:
-        :param password:
-        :param secret_question:
-        :param secret_answer:
-        :return:
-        """
-        user_id = self.getUserId(username)
-        #Prüfen ob der Username eventuell schon existiert, falls ja Fehlermeldung
-        if user_id:
-            return jsonify({'message': 'User already existing'}),400
-        # Datenbank Query für das Erstellen eines Benutzers
-        insert_user_query = (f"INSERT INTO Users (username, password, secret_question, secret_answer) "
-                             f"VALUES (\'{username}\', \'{password}\', \'{secret_question}\', \'{secret_answer}\')")
-        user = self.execute_query(insert_user_query,fetch=False)
-        # Wenn der User erfolgreich erstellt wurde Erfolgsmeldung, ansonsten Fehlermeldung
-        if user:
-            return jsonify({'message': 'User created'}),200
-        else:
-            return jsonify({'message': 'Usercreation failed'}),400
+        def insertUser(self, username,password,secret_question,secret_answer):
+            """
+            Erstellt einen neuen Benutzer in der Datenbank
+            :param username:
+            :param password:
+            :param secret_question:
+            :param secret_answer:
+            :return:
+            """
+            user_id = self.getUserId(username)
+            #Prüfen ob der Username eventuell schon existiert, falls ja Fehlermeldung
+            if user_id:
+                return jsonify({'message': 'User already existing'}),400
+            # Datenbank Query für das Erstellen eines Benutzers
+            insert_user_query = "INSERT INTO Users (username, password, secret_question, secret_answer) VALUES (%s, %s, %s, %s)"
+            user = self.execute_query(insert_user_query, (username, password, secret_question, secret_answer), fetch=False)
+            # Wenn der User erfolgreich erstellt wurde Erfolgsmeldung, ansonsten Fehlermeldung
+            if user:
+                return jsonify({'message': 'User created'}),200
+            else:
+                return jsonify({'message': 'Usercreation failed'}),400
 
     def getSecretQuestion(self, username):
         """
@@ -212,12 +212,8 @@ class DBHandler():
         user_id = self.getUserId(username)
         if user_id:
             #Datenbank Query für das Abfragen der Geheimfrage
-            secret_question_query = f"SELECT secret_question FROM Users WHERE id='{user_id}'"
-            secret_question = self.execute_query(secret_question_query, fetchone=True)
+            secret_question_query = "SELECT secret_question FROM Users WHERE id=%s"
+            secret_question = self.execute_query(secret_question_query, (user_id,), fetchone=True)
             #Falls Frage vorhanden wird diese als JSON zurückgemeldet, anderenfalls eine Fehlermeldung
             if secret_question:
                 return jsonify({'secret_question': f'{secret_question[0]}'})
-            else:
-                return jsonify({'message': 'User doesn\'t exist'}), 403
-        else:
-            return jsonify({'message': 'User doesn\'t exist'}), 403
